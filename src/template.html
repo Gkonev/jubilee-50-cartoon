@@ -286,7 +286,7 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
     <hr class="rule">
     <h2>Придёте?</h2>
     <p>Подтвердите явку <span class="deadline">до 1 ноября</span>, чтобы мы успели рассадить всех свидетелей.</p>
-    <p class="note">Повестку заполняет каждый свидетель отдельно. Если придёте вдвоём или семьёй, пришлите ответ за каждого: так никто не останется без места за столом.</p>
+    <p class="note">Повестку заполняет каждый свидетель отдельно. Если придёте вдвоём, пришлите ответ за каждого: так никто не останется без места за столом.</p>
 
     <form class="form" id="form" novalidate>
       <div>
@@ -388,6 +388,13 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
     loopTimer = setTimeout(schedule, ((tm - ac.currentTime) + BEAT*2)*1000);
   }
   const btn = document.getElementById('music');
+  /* real track if present (audio/song.mp3), music box as fallback */
+  let track = new Audio('audio/song.mp3'); track.loop = true; track.preload = 'auto'; track.volume = .85;
+  let trackOk = null; // null = unknown, true = file plays, false = no file
+  track.addEventListener('canplaythrough', ()=>{ if(trackOk===null) trackOk = true; }, {once:true});
+  track.addEventListener('error', ()=>{ trackOk = false; track = null; }, {once:true});
+  track.load();
+  function ui(on){ playing = on; btn.classList.toggle('on', on); btn.setAttribute('aria-label', on ? 'Выключить музыку' : 'Включить музыку'); }
   function initAudio(){
     if(ac) return;
     ac = new (window.AudioContext||window.webkitAudioContext)();
@@ -395,10 +402,22 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
     const d = ac.createDelay(1); d.delayTime.value = .32; const fb = ac.createGain(); fb.gain.value=.28; const wet = ac.createGain(); wet.gain.value=.35;
     master.connect(ac.destination); master.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(ac.destination);
   }
-  function startMusic(){ initAudio(); ac.resume(); playing=true; btn.classList.add('on'); btn.setAttribute('aria-label','Выключить музыку'); schedule(); }
-  function stopMusic(){ playing=false; btn.classList.remove('on'); btn.setAttribute('aria-label','Включить музыку'); clearTimeout(loopTimer); if(ac) ac.suspend(); }
-  btn.addEventListener('click', ()=> playing ? stopMusic() : startMusic());
-  document.addEventListener('visibilitychange', ()=>{ if(document.hidden && playing) stopMusic(); });
+  function synthStart(){ initAudio(); ac.resume().then(()=>{ if(ac.state==='running'){ ui(true); schedule(); } }); }
+  function synthStop(){ clearTimeout(loopTimer); if(ac) ac.suspend(); }
+  let userStopped = false;
+  function startMusic(){
+    if(playing) return;
+    if(track && trackOk !== false){
+      track.play().then(()=>ui(true)).catch(()=>{ /* autoplay blocked or file missing: wait for a tap */ if(trackOk===false) synthStart(); });
+    } else synthStart();
+  }
+  function stopMusic(){ if(track) track.pause(); synthStop(); ui(false); }
+  btn.addEventListener('click', ()=>{ if(playing){ userStopped = true; stopMusic(); } else { userStopped = false; startMusic(); } });
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden && playing){ if(track) track.pause(); synthStop(); } else if(!document.hidden && playing){ if(track && trackOk) track.play().catch(()=>{}); } });
+  // try right away, then on the very first touch / click anywhere on the page
+  setTimeout(()=>{ if(!playing && !userStopped) startMusic(); }, 1000);
+  const onFirst = e => { if(btn.contains(e.target)) return; if(!playing && !userStopped) startMusic(); };
+  ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev, onFirst, {passive:true}));
   function pop(){ if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(880,t); o.frequency.exponentialRampToValueAtTime(1760,t+.08); g.gain.setValueAtTime(.15,t); g.gain.exponentialRampToValueAtTime(.0001,t+.18); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+.2); }
   function fanfare(){ if(!ac) return; const t = ac.currentTime; [['C5',0],['E5',.12],['G5',.24],['C5',.36]].forEach(([n,d])=>bell(N[n]*2, t+d, .35, .2)); bell(N.C5*2, t+.48, 1.2, .25); }
 
