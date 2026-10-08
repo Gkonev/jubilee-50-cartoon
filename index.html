@@ -154,11 +154,42 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
 .char.mom{animation:sway 6s ease-in-out infinite} .char.dad{animation:sway2 7s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important; transition:none!important} .rv{opacity:1; transform:none}}
 @media (max-width:420px){section{padding:52px 0} .card{padding:22px 18px}}
+
+/* opening screen */
+body.locked{overflow:hidden}
+#gate{position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; background:var(--paper); text-align:center; padding:24px; transition:opacity .8s ease, visibility .8s}
+#gate.out{opacity:0; visibility:hidden; pointer-events:none}
+.gate-in{max-width:440px; width:100%; animation:gatein .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes gatein{from{opacity:0; transform:translateY(18px) scale(.97)}to{opacity:1; transform:none}}
+.folder{position:relative; width:min(76vw,340px); aspect-ratio:4/3; margin:34px auto 28px; perspective:1000px}
+.folder .tab{position:absolute; left:6%; top:-11%; width:40%; height:15%; background:#e9c98c; border:2.5px solid var(--ink); border-bottom:0; border-radius:8px 8px 0 0}
+.folder .body{position:absolute; inset:0; background:#e9c98c; border:2.5px solid var(--ink); border-radius:10px; box-shadow:var(--card-shadow)}
+.folder .paper{position:absolute; left:8%; right:8%; top:9%; bottom:9%; background:#fff; border:2px solid var(--ink); display:grid; place-items:center; font-family:var(--head); font-size:clamp(22px,6.4vw,36px); line-height:1.1; text-transform:uppercase; z-index:1; transition:transform .8s cubic-bezier(.2,.8,.2,1) .25s}
+.folder .cover{position:absolute; inset:0; background:#f2d9a0; border:2.5px solid var(--ink); border-radius:10px; transform-origin:left center; transition:transform .85s ease; z-index:3; display:grid; place-items:center; backface-visibility:hidden}
+.folder .cover b{font-family:var(--head); font-size:clamp(18px,5vw,26px); text-transform:uppercase; letter-spacing:.04em}
+.folder .cstamp{position:absolute; right:6%; top:8%; border:4px solid var(--accent); color:var(--accent); font-family:var(--head); text-transform:uppercase; letter-spacing:.12em; padding:6px 12px; font-size:clamp(12px,3.4vw,17px); animation:slam .5s cubic-bezier(.2,1.4,.4,1) .45s both; background:rgba(255,255,255,.6)}
+@keyframes slam{from{transform:rotate(-12deg) scale(3); opacity:0}to{transform:rotate(-12deg) scale(1); opacity:1}}
+#gate.open .cover{transform:rotateY(-165deg)}
+#gate.open .paper{transform:translateY(-28%) rotate(-3deg)}
+.gate-title{font-family:var(--head); font-size:clamp(26px,6.4vw,40px); text-transform:uppercase; line-height:1.05; margin:0 0 8px}
+.gate-sub{color:var(--muted); margin:0 0 22px; font-size:16px}
+.gate-btn{animation:pulse 1.8s ease-in-out infinite; font-size:17px; padding:15px 26px}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.gate-hint{font-size:13px; color:var(--muted); margin-top:14px}
 </style>
 </head>
 <body data-theme="mix">
 
 <canvas id="confetti"></canvas>
+<div id="gate" role="dialog" aria-label="Приглашение">
+  <div class="gate-in">
+    <div class="folder" aria-hidden="true"><div class="tab"></div><div class="body"></div><div class="paper">⚖️<br>Повестка</div><div class="cover"><b>Дело № 50/50</b><div class="cstamp">Секретно</div></div></div>
+    <div class="gate-title">Евгений и Ольга</div>
+    <p class="gate-sub">вызывают вас в качестве свидетелей · 20 ноября 2026</p>
+    <button class="btn gate-btn" id="open" type="button">Открыть дело</button>
+    <p class="gate-hint">🎵 внутри музыка</p>
+  </div>
+</div>
 <button class="music" id="music" aria-label="Включить музыку" title="Музыка"><span class="icon">🎵</span><span class="bars"><i></i><i></i><i></i></span></button>
 
 <div class="mast"><div class="in">
@@ -415,7 +446,6 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
   btn.addEventListener('click', ()=>{ if(playing){ userStopped = true; stopMusic(); } else { userStopped = false; startMusic(); } });
   document.addEventListener('visibilitychange', ()=>{ if(document.hidden && playing){ if(track) track.pause(); synthStop(); } else if(!document.hidden && playing){ if(track && trackOk) track.play().catch(()=>{}); } });
   // try right away, then on the very first touch / click anywhere on the page
-  setTimeout(()=>{ if(!playing && !userStopped) startMusic(); }, 1000);
   const onFirst = e => { if(btn.contains(e.target)) return; if(!playing && !userStopped) startMusic(); };
   ['touchend','click','keydown'].forEach(ev=>document.addEventListener(ev, onFirst, {passive:true}));
   function pop(){ if(!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(880,t); o.frequency.exponentialRampToValueAtTime(1760,t+.08); g.gain.setValueAtTime(.15,t); g.gain.exponentialRampToValueAtTime(.0001,t+.18); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+.2); }
@@ -442,6 +472,17 @@ footer .big{font-family:var(--head); font-size:clamp(20px,4vw,30px); color:var(-
   });
   document.getElementById('again').addEventListener('click', ()=>{ form.reset(); submit.disabled=false; submit.textContent='Подтвердить'; thanks.style.display='none'; form.style.display='grid'; form.name.focus(); pop(); });
   document.querySelectorAll('.choice input').forEach(i=>i.addEventListener('change', pop));
+
+  /* ---------- opening screen ---------- */
+  const gate = document.getElementById('gate');
+  document.body.classList.add('locked');
+  document.getElementById('open').addEventListener('click', ()=>{
+    userStopped = false; startMusic();
+    gate.classList.add('open');
+    setTimeout(()=>{ gate.classList.add('out'); document.body.classList.remove('locked');
+      if(!reduce){ burst(60, innerWidth*.3, innerHeight*.35, .9); burst(60, innerWidth*.7, innerHeight*.35, .9); } }, 900);
+    setTimeout(()=>gate.remove(), 1900);
+  });
 })();
 </script>
 </body>
